@@ -7,7 +7,8 @@ class InterfaceCadastro(ctk.CTk):
         super().__init__()
 
         self.title("Sistema de Cadastro - Biometria")
-        self.geometry("400x550")
+        # Aumentamos a altura da janela para caber as novas labels
+        self.geometry("400x650")
         self.resizable(False, False)
         
         ctk.set_appearance_mode("Dark")
@@ -31,16 +32,33 @@ class InterfaceCadastro(ctk.CTk):
         self.var_contato.trace_add("write", lambda *args: self.mascara_telefone(self.var_contato))
 
     def criar_widgets(self):
-        """Desenha os elementos na tela."""
-        ctk.CTkLabel(self, text="Novo Cadastro", font=("Roboto", 24, "bold")).pack(pady=20)
+        """Desenha os elementos na tela com labels explicativas."""
+        ctk.CTkLabel(self, text="Novo Cadastro", font=("Roboto", 24, "bold")).pack(pady=(20, 15))
 
-        ctk.CTkEntry(self, textvariable=self.var_nome, placeholder_text="Nome Completo", width=300).pack(pady=10)
-        ctk.CTkEntry(self, textvariable=self.var_data_nasc, placeholder_text="Data de Nasc. (DD/MM/YYYY)", width=300).pack(pady=10)
-        ctk.CTkEntry(self, textvariable=self.var_contato, placeholder_text="Contato (DD) 9XXXX-XXXX", width=300).pack(pady=10)
-        ctk.CTkEntry(self, textvariable=self.var_data_bio, placeholder_text="Data da Biometria (DD/MM/YYYY)", width=300).pack(pady=10)
-        ctk.CTkEntry(self, textvariable=self.var_hora_bio, placeholder_text="Horário da Biometria (HH:MM)", width=300).pack(pady=10)
+        # --- Campo: Nome Completo ---
+        # anchor="w" alinha o texto à esquerda. padx=50 alinha perfeitamente com a caixa de 300px
+        ctk.CTkLabel(self, text="NOME COMPLETO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        # pady=(0, 15) significa 0 de espaço em cima (para ficar colado na label) e 15 embaixo
+        ctk.CTkEntry(self, textvariable=self.var_nome, width=300).pack(pady=(0, 15))
 
-        ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=300, fg_color="green", hover_color="darkgreen").pack(pady=30)
+        # --- Campo: Data de Nascimento ---
+        ctk.CTkLabel(self, text="DATA DE NASCIMENTO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        ctk.CTkEntry(self, textvariable=self.var_data_nasc, placeholder_text="DD/MM/YYYY", width=300).pack(pady=(0, 15))
+
+        # --- Campo: Contato ---
+        ctk.CTkLabel(self, text="NÚMERO PARA CONTATO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        ctk.CTkEntry(self, textvariable=self.var_contato, placeholder_text="(DD) 9XXXX-XXXX", width=300).pack(pady=(0, 15))
+
+        # --- Campo: Data da Biometria ---
+        ctk.CTkLabel(self, text="DATA DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        ctk.CTkEntry(self, textvariable=self.var_data_bio, placeholder_text="DD/MM/YYYY", width=300).pack(pady=(0, 15))
+
+        # --- Campo: Horário da Biometria ---
+        ctk.CTkLabel(self, text="HORÁRIO DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        ctk.CTkEntry(self, textvariable=self.var_hora_bio, placeholder_text="HH:MM", width=300).pack(pady=(0, 20))
+
+        # --- Botão Salvar ---
+        ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=300, fg_color="green", hover_color="darkgreen").pack(pady=10)
 
     # --- Funções de Máscara ---
     def mascara_data(self, var):
@@ -75,11 +93,10 @@ class InterfaceCadastro(ctk.CTk):
             return
 
         try:
-            # Chama a função do arquivo database.py
             database.salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio)
             messagebox.showinfo("Sucesso", f"Cadastro de {nome} salvo com sucesso!")
             
-            # Limpa os campos
+            # Limpa os campos após salvar
             for var in [self.var_nome, self.var_data_nasc, self.var_contato, self.var_data_bio, self.var_hora_bio]:
                 var.set("")
                 
