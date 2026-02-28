@@ -30,12 +30,9 @@ def salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio):
     conexao.close()
 
 def buscar_por_mes_ano(mes, ano):
-    """Busca cadastros no banco filtrando pelo Mês e/ou Ano da biometria."""
     conexao = sqlite3.connect(NOME_BANCO)
     cursor = conexao.cursor()
     
-    # O % funciona como um "coringa" no SQL. 
-    # Exemplo: %/02/2026 busca qualquer dia (DD) que termine com /02/2026
     if mes == "Todos" and ano == "Todos":
         cursor.execute("SELECT * FROM cadastros")
     elif mes != "Todos" and ano != "Todos":
@@ -48,6 +45,17 @@ def buscar_por_mes_ano(mes, ano):
         termo = f"%/%/{ano}"
         cursor.execute("SELECT * FROM cadastros WHERE data_biometria LIKE ?", (termo,))
         
+    resultados = cursor.fetchall()
+    conexao.close()
+    return resultados
+
+# --- NOVA FUNÇÃO PARA O EXCEL ---
+def buscar_por_data_exata(data):
+    """Busca cadastros de um dia específico, ordenados pelo horário."""
+    conexao = sqlite3.connect(NOME_BANCO)
+    cursor = conexao.cursor()
+    # ORDER BY horario_biometria garante que a planilha saia em ordem de atendimento
+    cursor.execute("SELECT * FROM cadastros WHERE data_biometria = ? ORDER BY horario_biometria ASC", (data,))
     resultados = cursor.fetchall()
     conexao.close()
     return resultados
