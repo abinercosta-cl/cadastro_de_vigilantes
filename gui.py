@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinter import messagebox, StringVar
+from tkinter import messagebox, StringVar, filedialog
 import database
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -12,6 +12,7 @@ class JanelaRelatorio(ctk.CTkToplevel):
         self.title("Relatório de Biometrias")
         self.geometry("500x750") 
         self.resizable(False, False)
+        # Mantém a janela no topo inicialmente
         self.attributes("-topmost", True)
         
         self.var_data_export = StringVar()
@@ -20,50 +21,36 @@ class JanelaRelatorio(ctk.CTkToplevel):
         self.carregar_dados()
 
     def criar_widgets(self):
-        # --- Secção de Filtro Visual ---
-        frame_topo = ctk.CTkFrame(self)
-        frame_topo.pack(pady=10, padx=10, fill="x")
+        ctk.CTkLabel(self, text="Novo Cadastro", font=("Roboto", 24, "bold")).pack(pady=(20, 15))
 
-        ctk.CTkLabel(frame_topo, text="Filtrar Lista por Mês/Ano:", font=("Roboto", 14, "bold")).pack(pady=5)
-        
-        frame_busca = ctk.CTkFrame(frame_topo, fg_color="transparent")
-        frame_busca.pack(pady=5)
-        
-        ctk.CTkLabel(frame_busca, text="Mês:").pack(side="left", padx=(10, 2))
-        self.combo_mes = ctk.CTkComboBox(frame_busca, values=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"], width=80)
-        self.combo_mes.set("Todos")
-        self.combo_mes.pack(side="left", padx=5)
+        ctk.CTkLabel(self, text="NOME COMPLETO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        self.entry_nome = ctk.CTkEntry(self, textvariable=self.var_nome, width=300)
+        self.entry_nome.pack(pady=(0, 15))
 
-        ctk.CTkLabel(frame_busca, text="Ano:").pack(side="left", padx=(10, 2))
-        self.combo_ano = ctk.CTkComboBox(frame_busca, values=["Todos", "2025", "2026", "2027", "2028"], width=80)
-        self.combo_ano.set("2026")
-        self.combo_ano.pack(side="left", padx=5)
+        ctk.CTkLabel(self, text="DATA DE NASCIMENTO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        self.entry_data_nasc = ctk.CTkEntry(self, textvariable=self.var_data_nasc, placeholder_text="DD/MM/YYYY", width=300)
+        self.entry_data_nasc.pack(pady=(0, 15))
 
-        ctk.CTkButton(frame_busca, text="Buscar", command=self.carregar_dados, width=80).pack(side="left", padx=10)
+        ctk.CTkLabel(self, text="NÚMERO PARA CONTATO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        self.entry_contato = ctk.CTkEntry(self, textvariable=self.var_contato, placeholder_text="(DD) 9XXXX-XXXX", width=300)
+        self.entry_contato.pack(pady=(0, 15))
 
-        # --- Lista Rolável ---
-        self.scroll_frame = ctk.CTkScrollableFrame(self, label_text="Cadastros Encontrados")
-        self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
+        ctk.CTkLabel(self, text="DATA DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        self.entry_data_bio = ctk.CTkEntry(self, textvariable=self.var_data_bio, placeholder_text="DD/MM/YYYY", width=300)
+        self.entry_data_bio.pack(pady=(0, 15))
 
-        # --- Secção: Exportar para Excel ---
-        frame_export = ctk.CTkFrame(self)
-        frame_export.pack(pady=10, padx=10, fill="x")
-        
-        ctk.CTkLabel(frame_export, text="Exportar Planilha do Dia (Para Impressão):", font=("Roboto", 14, "bold")).pack(pady=5)
-        
-        frame_input_export = ctk.CTkFrame(frame_export, fg_color="transparent")
-        frame_input_export.pack(pady=5)
-        
-        self.entry_data_export = ctk.CTkEntry(frame_input_export, textvariable=self.var_data_export, placeholder_text="DD/MM/YYYY", width=150)
-        self.entry_data_export.pack(side="left", padx=10)
-        
-        self.var_data_export.trace_add("write", lambda *args: self.mascara_data(self.var_data_export, self.entry_data_export))
-        
-        ctk.CTkButton(frame_input_export, text="Gerar Excel", command=self.gerar_excel, width=120, fg_color="#1f538d").pack(side="left", padx=10)
+        ctk.CTkLabel(self, text="HORÁRIO DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        self.entry_hora_bio = ctk.CTkEntry(self, textvariable=self.var_hora_bio, placeholder_text="HH:MM", width=300)
+        self.entry_hora_bio.pack(pady=(0, 20))
 
-        # --- Botão Voltar ---
-        ctk.CTkButton(self, text="Voltar para Cadastro", command=self.destroy, width=200, fg_color="#C8504B", hover_color="#A7423E").pack(pady=(5, 15))
+        ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=300, fg_color="green", hover_color="darkgreen").pack(pady=5)
+        ctk.CTkButton(self, text="Limpar Campos", command=self.limpar_campos, width=300, fg_color="#555555", hover_color="#333333").pack(pady=5)
+        ctk.CTkButton(self, text="Ver Relatórios", command=self.abrir_relatorios, width=300, fg_color="#1f538d", hover_color="#14375e").pack(pady=10)
 
+        self.var_data_nasc.trace_add("write", lambda *args: self.mascara_data(self.var_data_nasc, self.entry_data_nasc))
+        self.var_data_bio.trace_add("write", lambda *args: self.mascara_data(self.var_data_bio, self.entry_data_bio))
+        self.var_hora_bio.trace_add("write", lambda *args: self.mascara_hora(self.var_hora_bio, self.entry_hora_bio))
+        self.var_contato.trace_add("write", lambda *args: self.mascara_telefone(self.var_contato, self.entry_contato))
     def mascara_data(self, var, widget):
         texto = ''.join(filter(str.isdigit, var.get()))[:8]
         formatado = ""
@@ -96,6 +83,7 @@ class JanelaRelatorio(ctk.CTkToplevel):
             texto_card = f"Nome: {nome} | Contato: {contato}\nData Biometria: {data_bio} às {hora_bio}"
             ctk.CTkLabel(card, text=texto_card, font=("Roboto", 13), justify="left").pack(pady=10, padx=10, anchor="w")
 
+    # --- LÓGICA CORRIGIDA PARA A JANELA DE SALVAR ---
     def gerar_excel(self):
         data_escolhida = self.var_data_export.get()
         
@@ -141,20 +129,41 @@ class JanelaRelatorio(ctk.CTkToplevel):
                     if cell.column != 2: 
                         cell.alignment = Alignment(horizontal="center")
             
-            nome_arquivo = f"Agenda_Biometria_{data_escolhida.replace('/', '-')}.xlsx"
-            wb.save(nome_arquivo)
+            nome_sugerido = f"Agenda_Biometria_{data_escolhida.replace('/', '-')}.xlsx"
             
-            messagebox.showinfo("Sucesso", f"Planilha gerada com sucesso!\nFicheiro: {nome_arquivo}")
+            # 1. Tira o bloqueio do topmost antes de abrir a janela
+            self.attributes("-topmost", False)
+            
+            # 2. Abre a janela de salvar usando parent=self
+            caminho_arquivo = filedialog.asksaveasfilename(
+                parent=self,
+                defaultextension=".xlsx",
+                initialfile=nome_sugerido,
+                title="Salvar Planilha Como",
+                filetypes=[("Planilha do Excel", "*.xlsx"), ("Todos os Arquivos", "*.*")]
+            )
+            
+            # 3. Devolve o bloqueio do topmost logo que a janela de salvar fechar
+            self.attributes("-topmost", True)
+            
+            if not caminho_arquivo:
+                return 
+                
+            wb.save(caminho_arquivo)
+            messagebox.showinfo("Sucesso", f"Planilha salva com sucesso em:\n{caminho_arquivo}")
             
         except Exception as e:
+            # Em caso de erro, também precisamos garantir que o topmost volte ao normal
+            self.attributes("-topmost", True)
             messagebox.showerror("Erro", f"Erro ao gerar Excel:\n{e}")
+
 
 class InterfaceCadastro(ctk.CTk):
     def __init__(self):
         super().__init__()
 
         self.title("Sistema de Cadastro - Biometria")
-        self.geometry("400x750") # Aumentei ligeiramente para caber o novo botão
+        self.geometry("400x750") 
         self.resizable(False, False)
         
         ctk.set_appearance_mode("Dark")
@@ -187,81 +196,4 @@ class InterfaceCadastro(ctk.CTk):
 
         ctk.CTkLabel(self, text="DATA DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
         self.entry_data_bio = ctk.CTkEntry(self, textvariable=self.var_data_bio, placeholder_text="DD/MM/YYYY", width=300)
-        self.entry_data_bio.pack(pady=(0, 15))
-
-        ctk.CTkLabel(self, text="HORÁRIO DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
-        self.entry_hora_bio = ctk.CTkEntry(self, textvariable=self.var_hora_bio, placeholder_text="HH:MM", width=300)
-        self.entry_hora_bio.pack(pady=(0, 20))
-
-        # --- BOTÕES PRINCIPAIS ---
-        ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=300, fg_color="green", hover_color="darkgreen").pack(pady=5)
-        
-        # NOVO BOTÃO: Limpar Campos (Cor cinzenta para distinguir das outras ações)
-        ctk.CTkButton(self, text="Limpar Campos", command=self.limpar_campos, width=300, fg_color="#555555", hover_color="#333333").pack(pady=5)
-        
-        ctk.CTkButton(self, text="Ver Relatórios", command=self.abrir_relatorios, width=300, fg_color="#1f538d", hover_color="#14375e").pack(pady=10)
-
-        # Atrelar as máscaras
-        self.var_data_nasc.trace_add("write", lambda *args: self.mascara_data(self.var_data_nasc, self.entry_data_nasc))
-        self.var_data_bio.trace_add("write", lambda *args: self.mascara_data(self.var_data_bio, self.entry_data_bio))
-        self.var_hora_bio.trace_add("write", lambda *args: self.mascara_hora(self.var_hora_bio, self.entry_hora_bio))
-        self.var_contato.trace_add("write", lambda *args: self.mascara_telefone(self.var_contato, self.entry_contato))
-
-    def mascara_data(self, var, widget):
-        texto = ''.join(filter(str.isdigit, var.get()))[:8]
-        formatado = ""
-        if len(texto) > 0: formatado += texto[:2]
-        if len(texto) > 2: formatado += '/' + texto[2:4]
-        if len(texto) > 4: formatado += '/' + texto[4:]
-        
-        var.set(formatado)
-        widget.after(1, lambda: widget.icursor("end"))
-
-    def mascara_telefone(self, var, widget):
-        texto = ''.join(filter(str.isdigit, var.get()))[:11]
-        formatado = ""
-        if len(texto) > 0: formatado += f"({texto[:2]}"
-        if len(texto) > 2: formatado += f") {texto[2:7]}"
-        if len(texto) > 7: formatado += f"-{texto[7:]}"
-        
-        var.set(formatado)
-        widget.after(1, lambda: widget.icursor("end"))
-
-    def mascara_hora(self, var, widget):
-        texto = ''.join(filter(str.isdigit, var.get()))[:4]
-        formatado = ""
-        if len(texto) > 0: formatado += texto[:2]
-        if len(texto) > 2: formatado += ':' + texto[2:]
-        
-        var.set(formatado)
-        widget.after(1, lambda: widget.icursor("end"))
-
-    # --- NOVA FUNÇÃO: Limpar os campos ---
-    def limpar_campos(self):
-        """Esvazia todos os campos de entrada do formulário."""
-        for var in [self.var_nome, self.var_data_nasc, self.var_contato, self.var_data_bio, self.var_hora_bio]:
-            var.set("")
-
-    def processar_salvamento(self):
-        nome = self.var_nome.get()
-        data_nasc = self.var_data_nasc.get()
-        contato = self.var_contato.get()
-        data_bio = self.var_data_bio.get()
-        hora_bio = self.var_hora_bio.get()
-
-        if not nome or not data_nasc:
-            messagebox.showwarning("Aviso", "Os campos Nome e Data de Nascimento são obrigatórios!")
-            return
-
-        try:
-            database.salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio)
-            messagebox.showinfo("Sucesso", f"Cadastro de {nome} salvo com sucesso!")
-            
-            # Aproveitamos a nova função para limpar os campos após um registo bem-sucedido
-            self.limpar_campos()
-                
-        except Exception as e:
-            messagebox.showerror("Erro", f"Ocorreu um erro ao salvar:\n{e}")
-
-    def abrir_relatorios(self):
-        JanelaRelatorio(self)
+        self.entry
