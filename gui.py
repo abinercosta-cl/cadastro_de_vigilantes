@@ -1,24 +1,30 @@
 import customtkinter as ctk
 from tkinter import messagebox, StringVar
 import database
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+import os
 
 class JanelaRelatorio(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         
         self.title("Relatório de Biometrias")
-        self.geometry("500x650")
+        self.geometry("500x750") # Aumentei para caber a nova função
         self.resizable(False, False)
         self.attributes("-topmost", True)
+        
+        self.var_data_export = StringVar()
         
         self.criar_widgets()
         self.carregar_dados()
 
     def criar_widgets(self):
+        # --- Seção de Filtro Visual ---
         frame_topo = ctk.CTkFrame(self)
         frame_topo.pack(pady=10, padx=10, fill="x")
 
-        ctk.CTkLabel(frame_topo, text="Filtrar por Mês/Ano da Biometria:", font=("Roboto", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(frame_topo, text="Filtrar Lista por Mês/Ano:", font=("Roboto", 14, "bold")).pack(pady=5)
         
         frame_busca = ctk.CTkFrame(frame_topo, fg_color="transparent")
         frame_busca.pack(pady=5)
@@ -35,10 +41,39 @@ class JanelaRelatorio(ctk.CTkToplevel):
 
         ctk.CTkButton(frame_busca, text="Buscar", command=self.carregar_dados, width=80).pack(side="left", padx=10)
 
+        # --- Lista Rolável ---
         self.scroll_frame = ctk.CTkScrollableFrame(self, label_text="Cadastros Encontrados")
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
+        # --- NOVA SEÇÃO: Exportar para Excel ---
+        frame_export = ctk.CTkFrame(self)
+        frame_export.pack(pady=10, padx=10, fill="x")
+        
+        ctk.CTkLabel(frame_export, text="Exportar Planilha do Dia (Para Impressão):", font=("Roboto", 14, "bold")).pack(pady=5)
+        
+        frame_input_export = ctk.CTkFrame(frame_export, fg_color="transparent")
+        frame_input_export.pack(pady=5)
+        
+        self.entry_data_export = ctk.CTkEntry(frame_input_export, textvariable=self.var_data_export, placeholder_text="DD/MM/YYYY", width=150)
+        self.entry_data_export.pack(side="left", padx=10)
+        
+        # Máscara para o campo de exportação
+        self.var_data_export.trace_add("write", lambda *args: self.mascara_data(self.var_data_export, self.entry_data_export))
+        
+        ctk.CTkButton(frame_input_export, text="Gerar Excel", command=self.gerar_excel, width=120, fg_color="#1f538d").pack(side="left", padx=10)
+
+        # --- Botão Voltar ---
         ctk.CTkButton(self, text="Voltar para Cadastro", command=self.destroy, width=200, fg_color="#C8504B", hover_color="#A7423E").pack(pady=(5, 15))
+
+    def mascara_data(self, var, widget):
+        texto = ''.join(filter(str.isdigit, var.get()))[:8]
+        formatado = ""
+        if len(texto) > 0: formatado += texto[:2]
+        if len(texto) > 2: formatado += '/' + texto[2:4]
+        if len(texto) > 4: formatado += '/' + texto[4:]
+        
+        var.set(formatado)
+        widget.after(1, lambda: widget.icursor("end"))
 
     def carregar_dados(self):
         for widget in self.scroll_frame.winfo_children():
@@ -62,6 +97,68 @@ class JanelaRelatorio(ctk.CTkToplevel):
             texto_card = f"Nome: {nome} | Contato: {contato}\nData Biometria: {data_bio} às {hora_bio}"
             ctk.CTkLabel(card, text=texto_card, font=("Roboto", 13), justify="left").pack(pady=10, padx=10, anchor="w")
 
+    # --- LÓGICA DE GERAÇÃO DO EXCEL ---
+    def gerar_excel(self):
+        data_escolhida = self.var_data_export.get()
+        
+        if len(data_escolhida) != 10:
+            messagebox.showwarning("Aviso", "Digite uma data válida completa (DD/MM/YYYY) para exportar.")
+            return
+            
+        resultados = database.buscar_por_data_exata(data_escolhida)
+        
+        if not resultados:
+            messagebox.showinfo("Sem Agendamentos", f"Nenhuma biometria marcada para {data_escolhida}.")
+            return
+            
+        try:
+            # Cria a planilha em branco
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Agenda Biometria"
+            
+            # Cabeçalhos
+            headers = ["ID", "Nome Completo", "Data de Nasc.", "Contato", "Data Biometria", "Horário"]
+            ws.append(headers)
+            
+            # Formatação do Cabeçalho (Azul com letras brancas em negrito)
+            fill_header = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+            font_header = Font(color="FFFFFF", bold=True)
+            
+            for col in range(1, len(headers) + 1):
+                celula = ws.cell(row=1, column=col)
+                celula.fill = fill_header
+                celula.font = font_header
+                celula.alignment = Alignment(horizontal="center")
+                
+            # Adiciona os dados do banco na planilha
+            for linha in resultados:
+                ws.append(linha)
+                
+            # Ajusta o tamanho das colunas para os textos não ficarem cortados
+            ws.column_dimensions["A"].width = 5   # ID
+            ws.column_dimensions["B"].width = 35  # Nome
+            ws.column_dimensions["C"].width = 15  # Data Nasc
+            ws.column_dimensions["D"].width = 20  # Contato
+            ws.column_dimensions["E"].width = 15  # Data Bio
+            ws.column_dimensions["F"].width = 10  # Horário
+            
+            # Alinha as colunas de dados ao centro (exceto o nome)
+            for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=6):
+                for cell in row:
+                    if cell.column != 2: # Coluna 2 é o Nome Completo
+                        cell.alignment = Alignment(horizontal="center")
+            
+            # Salva o arquivo na mesma pasta do programa
+            nome_arquivo = f"Agenda_Biometria_{data_escolhida.replace('/', '-')}.xlsx"
+            wb.save(nome_arquivo)
+            
+            messagebox.showinfo("Sucesso", f"Planilha gerada com sucesso!\nArquivo: {nome_arquivo}")
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao gerar Excel:\n{e}")
+
+# ... (O código da classe InterfaceCadastro continua exatamente igual abaixo) ...
 
 class InterfaceCadastro(ctk.CTk):
     def __init__(self):
@@ -110,15 +207,12 @@ class InterfaceCadastro(ctk.CTk):
         ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=300, fg_color="green", hover_color="darkgreen").pack(pady=5)
         ctk.CTkButton(self, text="Ver Relatórios", command=self.abrir_relatorios, width=300, fg_color="#1f538d", hover_color="#14375e").pack(pady=10)
 
-        # Atrelando as máscaras
         self.var_data_nasc.trace_add("write", lambda *args: self.mascara_data(self.var_data_nasc, self.entry_data_nasc))
         self.var_data_bio.trace_add("write", lambda *args: self.mascara_data(self.var_data_bio, self.entry_data_bio))
         self.var_hora_bio.trace_add("write", lambda *args: self.mascara_hora(self.var_hora_bio, self.entry_hora_bio))
         self.var_contato.trace_add("write", lambda *args: self.mascara_telefone(self.var_contato, self.entry_contato))
 
-    # --- FUNÇÕES DE MÁSCARA CORRIGIDAS ---
     def mascara_data(self, var, widget):
-        # Pega apenas os números e limita a 8 caracteres (DDMMYYYY)
         texto = ''.join(filter(str.isdigit, var.get()))[:8]
         formatado = ""
         if len(texto) > 0: formatado += texto[:2]
@@ -126,11 +220,9 @@ class InterfaceCadastro(ctk.CTk):
         if len(texto) > 4: formatado += '/' + texto[4:]
         
         var.set(formatado)
-        # O .after(1, ...) obriga a interface a esperar o texto ser renderizado antes de mover o cursor
         widget.after(1, lambda: widget.icursor("end"))
 
     def mascara_telefone(self, var, widget):
-        # Limita a 11 caracteres (DD9XXXXXXXX)
         texto = ''.join(filter(str.isdigit, var.get()))[:11]
         formatado = ""
         if len(texto) > 0: formatado += f"({texto[:2]}"
@@ -141,7 +233,6 @@ class InterfaceCadastro(ctk.CTk):
         widget.after(1, lambda: widget.icursor("end"))
 
     def mascara_hora(self, var, widget):
-        # Limita a 4 caracteres (HHMM)
         texto = ''.join(filter(str.isdigit, var.get()))[:4]
         formatado = ""
         if len(texto) > 0: formatado += texto[:2]
