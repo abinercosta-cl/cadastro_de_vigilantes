@@ -7,17 +7,13 @@ class JanelaRelatorio(ctk.CTkToplevel):
         super().__init__(parent)
         
         self.title("Relatório de Biometrias")
-        self.geometry("500x600")
+        self.geometry("500x650") # Aumentei um pouco a altura para caber o botão Voltar
         self.resizable(False, False)
         
         # Garante que a janela fique no topo
         self.attributes("-topmost", True)
         
-        self.var_filtro_data = StringVar()
-        self.var_filtro_data.trace_add("write", lambda *args: self.mascara_data(self.var_filtro_data))
-
         self.criar_widgets()
-        # Carrega todos os dados logo que a janela abre
         self.carregar_dados()
 
     def criar_widgets(self):
@@ -25,48 +21,53 @@ class JanelaRelatorio(ctk.CTkToplevel):
         frame_topo = ctk.CTkFrame(self)
         frame_topo.pack(pady=10, padx=10, fill="x")
 
-        ctk.CTkLabel(frame_topo, text="Filtrar por Data da Biometria:", font=("Roboto", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(frame_topo, text="Filtrar por Mês/Ano da Biometria:", font=("Roboto", 14, "bold")).pack(pady=5)
         
-        # Campo de busca e botão lado a lado
         frame_busca = ctk.CTkFrame(frame_topo, fg_color="transparent")
         frame_busca.pack(pady=5)
         
-        ctk.CTkEntry(frame_busca, textvariable=self.var_filtro_data, placeholder_text="DD/MM/YYYY", width=200).pack(side="left", padx=10)
-        ctk.CTkButton(frame_busca, text="Buscar", command=self.carregar_dados, width=100).pack(side="left")
+        # ComboBox para o Mês
+        ctk.CTkLabel(frame_busca, text="Mês:").pack(side="left", padx=(10, 2))
+        self.combo_mes = ctk.CTkComboBox(frame_busca, values=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"], width=80)
+        self.combo_mes.set("Todos")
+        self.combo_mes.pack(side="left", padx=5)
 
-        # Frame rolável para exibir os resultados (estilo lista/cards)
+        # ComboBox para o Ano
+        ctk.CTkLabel(frame_busca, text="Ano:").pack(side="left", padx=(10, 2))
+        self.combo_ano = ctk.CTkComboBox(frame_busca, values=["Todos", "2025", "2026", "2027", "2028"], width=80)
+        self.combo_ano.set("2026")
+        self.combo_ano.pack(side="left", padx=5)
+
+        # Botão Buscar
+        ctk.CTkButton(frame_busca, text="Buscar", command=self.carregar_dados, width=80).pack(side="left", padx=10)
+
+        # Frame rolável para exibir os resultados
         self.scroll_frame = ctk.CTkScrollableFrame(self, label_text="Cadastros Encontrados")
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
-    def mascara_data(self, var):
-        texto = ''.join(filter(str.isdigit, var.get()))
-        if len(texto) > 2: texto = texto[:2] + '/' + texto[2:]
-        if len(texto) > 5: texto = texto[:5] + '/' + texto[5:]
-        var.set(texto[:10])
+        # --- NOVO: Botão Voltar ---
+        ctk.CTkButton(self, text="Voltar para Cadastro", command=self.destroy, width=200, fg_color="#C8504B", hover_color="#A7423E").pack(pady=(5, 15))
 
     def carregar_dados(self):
-        # Limpa o frame antes de adicionar novos resultados
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
             
-        data_filtro = self.var_filtro_data.get()
-        resultados = database.buscar_por_data_biometria(data_filtro)
+        mes_selecionado = self.combo_mes.get()
+        ano_selecionado = self.combo_ano.get()
+        
+        resultados = database.buscar_por_mes_ano(mes_selecionado, ano_selecionado)
 
         if not resultados:
-            ctk.CTkLabel(self.scroll_frame, text="Nenhum cadastro encontrado para esta data.", text_color="gray").pack(pady=20)
+            ctk.CTkLabel(self.scroll_frame, text="Nenhum cadastro encontrado para este período.", text_color="gray").pack(pady=20)
             return
 
-        # Cria um "card" para cada registro encontrado
         for linha in resultados:
-            # linha: (id, nome, data_nasc, contato, data_bio, hora_bio)
             id_cad, nome, data_nasc, contato, data_bio, hora_bio = linha
             
             card = ctk.CTkFrame(self.scroll_frame, corner_radius=10)
             card.pack(pady=5, padx=5, fill="x")
             
-            # Textos dentro do card
             texto_card = f"Nome: {nome} | Contato: {contato}\nData Biometria: {data_bio} às {hora_bio}"
-            
             ctk.CTkLabel(card, text=texto_card, font=("Roboto", 13), justify="left").pack(pady=10, padx=10, anchor="w")
 
 
@@ -75,7 +76,7 @@ class InterfaceCadastro(ctk.CTk):
         super().__init__()
 
         self.title("Sistema de Cadastro - Biometria")
-        self.geometry("400x720") # Aumentei um pouco para caber o novo botão
+        self.geometry("400x720") 
         self.resizable(False, False)
         
         ctk.set_appearance_mode("Dark")
@@ -114,10 +115,7 @@ class InterfaceCadastro(ctk.CTk):
         ctk.CTkLabel(self, text="HORÁRIO DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
         ctk.CTkEntry(self, textvariable=self.var_hora_bio, placeholder_text="HH:MM", width=300).pack(pady=(0, 20))
 
-        # Botão Cadastrar
         ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=300, fg_color="green", hover_color="darkgreen").pack(pady=5)
-        
-        # NOVO: Botão para abrir o Relatório
         ctk.CTkButton(self, text="Ver Relatórios", command=self.abrir_relatorios, width=300, fg_color="#1f538d", hover_color="#14375e").pack(pady=10)
 
     def mascara_data(self, var):
@@ -160,6 +158,5 @@ class InterfaceCadastro(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Erro", f"Ocorreu um erro ao salvar:\n{e}")
 
-    # Abre a nova janela
     def abrir_relatorios(self):
         JanelaRelatorio(self)

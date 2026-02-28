@@ -3,7 +3,6 @@ import sqlite3
 NOME_BANCO = "cadastros_biometria.db"
 
 def inicializar_banco():
-    """Cria o arquivo do banco de dados e a tabela se não existirem."""
     conexao = sqlite3.connect(NOME_BANCO)
     cursor = conexao.cursor()
     cursor.execute('''
@@ -20,7 +19,6 @@ def inicializar_banco():
     conexao.close()
 
 def salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio):
-    """Insere um novo registro no banco de dados."""
     conexao = sqlite3.connect(NOME_BANCO)
     cursor = conexao.cursor()
     query = """
@@ -31,16 +29,24 @@ def salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio):
     conexao.commit()
     conexao.close()
 
-def buscar_por_data_biometria(data):
-    """Busca cadastros no banco filtrando pela data da biometria."""
+def buscar_por_mes_ano(mes, ano):
+    """Busca cadastros no banco filtrando pelo Mês e/ou Ano da biometria."""
     conexao = sqlite3.connect(NOME_BANCO)
     cursor = conexao.cursor()
     
-    # Se a data for fornecida, filtra. Se estiver vazia, traz todos.
-    if data:
-        cursor.execute("SELECT * FROM cadastros WHERE data_biometria = ?", (data,))
-    else:
+    # O % funciona como um "coringa" no SQL. 
+    # Exemplo: %/02/2026 busca qualquer dia (DD) que termine com /02/2026
+    if mes == "Todos" and ano == "Todos":
         cursor.execute("SELECT * FROM cadastros")
+    elif mes != "Todos" and ano != "Todos":
+        termo = f"%/{mes}/{ano}"
+        cursor.execute("SELECT * FROM cadastros WHERE data_biometria LIKE ?", (termo,))
+    elif mes != "Todos" and ano == "Todos":
+        termo = f"%/{mes}/%"
+        cursor.execute("SELECT * FROM cadastros WHERE data_biometria LIKE ?", (termo,))
+    elif mes == "Todos" and ano != "Todos":
+        termo = f"%/%/{ano}"
+        cursor.execute("SELECT * FROM cadastros WHERE data_biometria LIKE ?", (termo,))
         
     resultados = cursor.fetchall()
     conexao.close()
