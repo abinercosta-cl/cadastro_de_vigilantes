@@ -30,3 +30,18 @@ def salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio):
     cursor.execute(query, (nome, data_nasc, contato, data_bio, hora_bio))
     conexao.commit()
     conexao.close()
+
+def buscar_por_data_biometria(data):
+    """Busca cadastros no banco filtrando pela data da biometria."""
+    conexao = sqlite3.connect(NOME_BANCO)
+    cursor = conexao.cursor()
+    
+    # Se a data for fornecida, filtra. Se estiver vazia, traz todos.
+    if data:
+        cursor.execute("SELECT * FROM cadastros WHERE data_biometria = ?", (data,))
+    else:
+        cursor.execute("SELECT * FROM cadastros")
+        
+    resultados = cursor.fetchall()
+    conexao.close()
+    return resultados
