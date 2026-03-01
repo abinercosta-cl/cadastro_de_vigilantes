@@ -46,7 +46,7 @@ Certifique-se de ter o Python 3.x instalado em sua máquina e o Git para clonar 
 1. Clonar o repositório
    Bash
 
-git clone [https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git](https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git)
+git clone [[https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git](https://github.com/abinercosta-cl/cadastro_de_vigilantes)]([https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git](https://github.com/abinercosta-cl/cadastro_de_vigilantes))
 cd SEU_REPOSITORIO
 
 2. Criar ambiente virtual e instalar dependências
