@@ -4,6 +4,7 @@ import database
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 import os
+from tkcalendar import Calendar  # <-- Nova importação do calendário!
 
 class JanelaRelatorio(ctk.CTkToplevel):
     def __init__(self, parent):
@@ -19,7 +20,6 @@ class JanelaRelatorio(ctk.CTkToplevel):
         self.criar_widgets()
         self.carregar_dados()
 
-    # ... (O código da JanelaRelatorio continua exatamente igual) ...
     def criar_widgets(self):
         frame_topo = ctk.CTkFrame(self)
         frame_topo.pack(pady=10, padx=10, fill="x")
@@ -52,8 +52,11 @@ class JanelaRelatorio(ctk.CTkToplevel):
         frame_input_export = ctk.CTkFrame(frame_export, fg_color="transparent")
         frame_input_export.pack(pady=5)
         
-        self.entry_data_export = ctk.CTkEntry(frame_input_export, textvariable=self.var_data_export, placeholder_text="DD/MM/YYYY", width=150)
-        self.entry_data_export.pack(side="left", padx=10)
+        self.entry_data_export = ctk.CTkEntry(frame_input_export, textvariable=self.var_data_export, placeholder_text="DD/MM/YYYY", width=110)
+        self.entry_data_export.pack(side="left", padx=(10, 5))
+        
+        # Botão de calendário na exportação
+        ctk.CTkButton(frame_input_export, text="📅", width=35, command=lambda: self.master.abrir_calendario(self.var_data_export, self)).pack(side="left", padx=(0, 10))
         
         self.var_data_export.trace_add("write", lambda *args: self.mascara_data(self.var_data_export, self.entry_data_export))
         
@@ -147,14 +150,13 @@ class JanelaRelatorio(ctk.CTkToplevel):
             messagebox.showerror("Erro", f"Erro ao gerar Excel:\n{e}")
 
 # ======================================================================
-# --- TELA PRINCIPAL COM O NOVO SISTEMA DE HORÁRIOS EM CORES ---
+# --- TELA PRINCIPAL DE CADASTRO ---
 # ======================================================================
 class InterfaceCadastro(ctk.CTk):
     def __init__(self):
         super().__init__()
 
         self.title("Sistema de Cadastro - Biometria")
-        # Aumentamos a janela para acomodar a grade de botões de forma elegante
         self.geometry("460x820") 
         self.resizable(False, False)
         
@@ -169,46 +171,84 @@ class InterfaceCadastro(ctk.CTk):
         self.var_data_nasc = StringVar()
         self.var_contato = StringVar()
         self.var_data_bio = StringVar()
-        # Esta variável vai guardar o horário que a pessoa clicou na grade
         self.var_hora_selecionada = StringVar(value="")
+
+    # --- FUNÇÃO DO CALENDÁRIO ---
+    def abrir_calendario(self, variavel_alvo, janela_pai=None):
+        """Abre uma janela suspensa com um calendário interativo."""
+        if janela_pai is None:
+            janela_pai = self
+            
+        top = ctk.CTkToplevel(janela_pai)
+        top.title("Escolher Data")
+        top.geometry("320x340")
+        top.resizable(False, False)
+        top.attributes("-topmost", True)
+
+        # Configura as cores do calendário para combinar com o Dark Mode
+        cal = Calendar(top, selectmode='day', date_pattern='dd/mm/yyyy',
+                       background="#1f538d", foreground="white",
+                       headersbackground="#14375e", headersforeground="white",
+                       normalbackground="#333333", normalforeground="white",
+                       weekendbackground="#444444", weekendforeground="white",
+                       othermonthbackground="#222222", othermonthforeground="gray",
+                       bordercolor="#333333")
+        cal.pack(pady=20, padx=20, fill="both", expand=True)
+
+        def confirmar_data():
+            # Pega a data selecionada e joga na variável (o que ativa as máscaras e a grade automaticamente)
+            variavel_alvo.set(cal.get_date())
+            top.destroy()
+
+        ctk.CTkButton(top, text="Confirmar Data", command=confirmar_data, fg_color="#187a38", hover_color="#0e4f23").pack(pady=(0, 20))
 
     def criar_widgets(self):
         ctk.CTkLabel(self, text="Novo Cadastro", font=("Roboto", 24, "bold")).pack(pady=(20, 15))
 
-        # Campos de Texto Padrão
+        # --- NOME ---
         ctk.CTkLabel(self, text="NOME COMPLETO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
         self.entry_nome = ctk.CTkEntry(self, textvariable=self.var_nome, width=340)
         self.entry_nome.pack(pady=(0, 10))
 
+        # --- DATA DE NASCIMENTO (Com Botão Calendário) ---
         ctk.CTkLabel(self, text="DATA DE NASCIMENTO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
-        self.entry_data_nasc = ctk.CTkEntry(self, textvariable=self.var_data_nasc, placeholder_text="DD/MM/YYYY", width=340)
-        self.entry_data_nasc.pack(pady=(0, 10))
+        frame_nasc = ctk.CTkFrame(self, fg_color="transparent")
+        frame_nasc.pack(pady=(0, 10))
+        
+        self.entry_data_nasc = ctk.CTkEntry(frame_nasc, textvariable=self.var_data_nasc, placeholder_text="DD/MM/YYYY", width=290)
+        self.entry_data_nasc.pack(side="left", padx=(0, 10))
+        
+        ctk.CTkButton(frame_nasc, text="📅", width=40, command=lambda: self.abrir_calendario(self.var_data_nasc)).pack(side="left")
 
+        # --- CONTATO ---
         ctk.CTkLabel(self, text="NÚMERO PARA CONTATO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
         self.entry_contato = ctk.CTkEntry(self, textvariable=self.var_contato, placeholder_text="(DD) 9XXXX-XXXX", width=340)
         self.entry_contato.pack(pady=(0, 10))
 
+        # --- DATA DA BIOMETRIA (Com Botão Calendário) ---
         ctk.CTkLabel(self, text="DATA DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
-        self.entry_data_bio = ctk.CTkEntry(self, textvariable=self.var_data_bio, placeholder_text="DD/MM/YYYY", width=340)
-        self.entry_data_bio.pack(pady=(0, 15))
-
-        # --- O NOVO PAINEL DE HORÁRIOS ---
-        ctk.CTkLabel(self, text="SELECIONE UM HORÁRIO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        frame_bio = ctk.CTkFrame(self, fg_color="transparent")
+        frame_bio.pack(pady=(0, 15))
         
-        # Um texto que mostra qual horário você clicou
+        self.entry_data_bio = ctk.CTkEntry(frame_bio, textvariable=self.var_data_bio, placeholder_text="DD/MM/YYYY", width=290)
+        self.entry_data_bio.pack(side="left", padx=(0, 10))
+        
+        ctk.CTkButton(frame_bio, text="📅", width=40, command=lambda: self.abrir_calendario(self.var_data_bio)).pack(side="left")
+
+        # --- O PAINEL DE HORÁRIOS ---
+        ctk.CTkLabel(self, text="SELECIONE UM HORÁRIO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
         self.lbl_hora_selecionada = ctk.CTkLabel(self, text="Aguardando data...", text_color="gray", font=("Roboto", 14, "bold"))
         self.lbl_hora_selecionada.pack(pady=(0, 5))
 
-        # O quadro vazio onde os botões (verdes e vermelhos) vão aparecer
         self.frame_horarios = ctk.CTkFrame(self, fg_color="transparent")
         self.frame_horarios.pack(pady=(0, 15), padx=20)
 
-        # Botões do rodapé
+        # --- BOTÕES DO RODAPÉ ---
         ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=340, fg_color="#187a38", hover_color="#0e4f23").pack(pady=5)
         ctk.CTkButton(self, text="Limpar Campos", command=self.limpar_campos, width=340, fg_color="#555555", hover_color="#333333").pack(pady=5)
         ctk.CTkButton(self, text="Ver Relatórios", command=self.abrir_relatorios, width=340, fg_color="#1f538d", hover_color="#14375e").pack(pady=10)
 
-        # Máscaras
+        # --- MÁSCARAS ---
         self.var_data_nasc.trace_add("write", lambda *args: self.mascara_data(self.var_data_nasc, self.entry_data_nasc))
         self.var_contato.trace_add("write", lambda *args: self.mascara_telefone(self.var_contato, self.entry_contato))
         self.var_data_bio.trace_add("write", lambda *args: self.mascara_data_biometria(self.var_data_bio, self.entry_data_bio))
@@ -222,7 +262,6 @@ class InterfaceCadastro(ctk.CTk):
         var.set(formatado)
         widget.after(1, lambda: widget.icursor("end"))
 
-    # --- ATUALIZAÇÃO DO PAINEL DE HORÁRIOS ---
     def mascara_data_biometria(self, var, widget):
         texto = ''.join(filter(str.isdigit, var.get()))[:8]
         formatado = ""
@@ -232,17 +271,14 @@ class InterfaceCadastro(ctk.CTk):
         var.set(formatado)
         widget.after(1, lambda: widget.icursor("end"))
         
-        # Se apagarem a data, some o painel
         if len(formatado) < 10:
             for w in self.frame_horarios.winfo_children(): w.destroy()
             self.lbl_hora_selecionada.configure(text="Aguardando data completa...", text_color="gray")
             self.var_hora_selecionada.set("")
-        # Quando a data tiver 10 caracteres, cria os botões!
         elif len(formatado) == 10:
             self.atualizar_grade_horarios(formatado)
 
     def atualizar_grade_horarios(self, data):
-        # Limpa o quadro anterior (caso a pessoa mude o dia)
         for widget in self.frame_horarios.winfo_children():
             widget.destroy()
 
@@ -251,40 +287,33 @@ class InterfaceCadastro(ctk.CTk):
             "14:00", "14:25", "14:50", "15:15", "15:40", "16:05", "16:30"
         ]
         
-        # Busca no banco
         horarios_ocupados = database.buscar_horarios_ocupados(data)
         
         self.var_hora_selecionada.set("")
-        self.lbl_hora_selecionada.configure(text="Nenhum horário selecionado", text_color="#c9b33a") # Amarelado
+        self.lbl_hora_selecionada.configure(text="Nenhum horário selecionado", text_color="#c9b33a")
 
-        # Variáveis para criar o grid (4 colunas de botões)
         linha = 0
         coluna = 0
         
         for hora in horarios_totais:
             if hora in horarios_ocupados:
-                # Botão Vermelho (Bloqueado)
                 btn = ctk.CTkButton(self.frame_horarios, text=hora, width=80, 
                                     fg_color="#8B0000", hover_color="#8B0000", state="disabled")
             else:
-                # Botão Verde (Livre)
                 btn = ctk.CTkButton(self.frame_horarios, text=hora, width=80, 
                                     fg_color="#228B22", hover_color="#006400",
                                     command=lambda h=hora: self.selecionar_horario(h))
             
-            # Posiciona o botão na grade
             btn.grid(row=linha, column=coluna, padx=5, pady=5)
             
-            # Controle das colunas (Pula de linha após 4 botões)
             coluna += 1
             if coluna > 3:
                 coluna = 0
                 linha += 1
 
     def selecionar_horario(self, hora_escolhida):
-        # Quando clicar num botão verde, salva a hora e mostra um texto visual claro
         self.var_hora_selecionada.set(hora_escolhida)
-        self.lbl_hora_selecionada.configure(text=f"Horário Selecionado: {hora_escolhida}", text_color="#228B22") # Verde
+        self.lbl_hora_selecionada.configure(text=f"Horário Selecionado: {hora_escolhida}", text_color="#228B22")
 
     def mascara_telefone(self, var, widget):
         texto = ''.join(filter(str.isdigit, var.get()))[:11]
@@ -308,7 +337,7 @@ class InterfaceCadastro(ctk.CTk):
         data_nasc = self.var_data_nasc.get()
         contato = self.var_contato.get()
         data_bio = self.var_data_bio.get()
-        hora_bio = self.var_hora_selecionada.get() # Pega a hora que a pessoa clicou na grade
+        hora_bio = self.var_hora_selecionada.get()
 
         if not nome or not data_nasc:
             messagebox.showwarning("Aviso", "Os campos Nome e Data de Nascimento são obrigatórios!")
