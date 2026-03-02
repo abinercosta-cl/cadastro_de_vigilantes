@@ -85,10 +85,8 @@ class JanelaRelatorio(ctk.CTkToplevel):
 
         for linha in resultados:
             id_cad, nome, data_nasc, contato, data_bio, hora_bio = linha
-            
             card = ctk.CTkFrame(self.scroll_frame, corner_radius=10)
             card.pack(pady=5, padx=5, fill="x")
-            
             texto_card = f"Nome: {nome} | Contato: {contato}\nData Biometria: {data_bio} às {hora_bio}"
             ctk.CTkLabel(card, text=texto_card, font=("Roboto", 13), justify="left").pack(pady=10, padx=10, anchor="w")
 
@@ -138,7 +136,6 @@ class JanelaRelatorio(ctk.CTkToplevel):
                         cell.alignment = Alignment(horizontal="center")
             
             nome_sugerido = f"Agenda_Biometria_{data_escolhida.replace('/', '-')}.xlsx"
-            
             self.attributes("-topmost", False)
             
             caminho_arquivo = filedialog.asksaveasfilename(
@@ -180,7 +177,7 @@ class InterfaceCadastro(ctk.CTk):
         self.var_data_nasc = StringVar()
         self.var_contato = StringVar()
         self.var_data_bio = StringVar()
-        self.var_hora_bio = StringVar()
+        # Não precisamos mais da variável do horário, o ComboBox cuida disso sozinho!
 
     def criar_widgets(self):
         ctk.CTkLabel(self, text="Novo Cadastro", font=("Roboto", 24, "bold")).pack(pady=(20, 15))
@@ -201,18 +198,22 @@ class InterfaceCadastro(ctk.CTk):
         self.entry_data_bio = ctk.CTkEntry(self, textvariable=self.var_data_bio, placeholder_text="DD/MM/YYYY", width=300)
         self.entry_data_bio.pack(pady=(0, 15))
 
-        ctk.CTkLabel(self, text="HORÁRIO DA BIOMETRIA", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
-        self.entry_hora_bio = ctk.CTkEntry(self, textvariable=self.var_hora_bio, placeholder_text="HH:MM", width=300)
-        self.entry_hora_bio.pack(pady=(0, 20))
+        # --- A GRANDE MUDANÇA: O ComboBox de Horários ---
+        ctk.CTkLabel(self, text="HORÁRIOS DISPONÍVEIS", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        self.combo_hora_bio = ctk.CTkComboBox(self, values=["Digite a data primeiro"], width=300)
+        self.combo_hora_bio.set("---")
+        self.combo_hora_bio.pack(pady=(0, 20))
 
         ctk.CTkButton(self, text="Cadastrar", command=self.processar_salvamento, width=300, fg_color="green", hover_color="darkgreen").pack(pady=5)
         ctk.CTkButton(self, text="Limpar Campos", command=self.limpar_campos, width=300, fg_color="#555555", hover_color="#333333").pack(pady=5)
         ctk.CTkButton(self, text="Ver Relatórios", command=self.abrir_relatorios, width=300, fg_color="#1f538d", hover_color="#14375e").pack(pady=10)
 
+        # Atrelar as máscaras. Note que separei a máscara da Data da Biometria.
         self.var_data_nasc.trace_add("write", lambda *args: self.mascara_data(self.var_data_nasc, self.entry_data_nasc))
-        self.var_data_bio.trace_add("write", lambda *args: self.mascara_data(self.var_data_bio, self.entry_data_bio))
-        self.var_hora_bio.trace_add("write", lambda *args: self.mascara_hora(self.var_hora_bio, self.entry_hora_bio))
         self.var_contato.trace_add("write", lambda *args: self.mascara_telefone(self.var_contato, self.entry_contato))
+        
+        # Esta máscara é especial, pois ela dispara a busca dos horários livres
+        self.var_data_bio.trace_add("write", lambda *args: self.mascara_data_biometria(self.var_data_bio, self.entry_data_bio))
 
     def mascara_data(self, var, widget):
         texto = ''.join(filter(str.isdigit, var.get()))[:8]
@@ -224,6 +225,44 @@ class InterfaceCadastro(ctk.CTk):
         var.set(formatado)
         widget.after(1, lambda: widget.icursor("end"))
 
+    # --- LÓGICA DE ATUALIZAÇÃO DE HORÁRIOS ---
+    def mascara_data_biometria(self, var, widget):
+        texto = ''.join(filter(str.isdigit, var.get()))[:8]
+        formatado = ""
+        if len(texto) > 0: formatado += texto[:2]
+        if len(texto) > 2: formatado += '/' + texto[2:4]
+        if len(texto) > 4: formatado += '/' + texto[4:]
+        
+        var.set(formatado)
+        widget.after(1, lambda: widget.icursor("end"))
+        
+        # Se a pessoa terminou de digitar a data toda (10 caracteres)
+        if len(formatado) == 10:
+            self.atualizar_horarios_disponiveis(formatado)
+        else:
+            self.combo_hora_bio.configure(values=["Digite a data completa"])
+            self.combo_hora_bio.set("---")
+
+    def atualizar_horarios_disponiveis(self, data):
+        # Grade fixa de horários (a cada 25 minutos, ignorando o almoço)
+        horarios_totais = [
+            "09:00", "09:25", "09:50", "10:15", "10:40", "11:05", "11:30",
+            "14:00", "14:25", "14:50", "15:15", "15:40", "16:05", "16:30"
+        ]
+        
+        # Busca no banco os horários que já foram marcados neste dia
+        horarios_ocupados = database.buscar_horarios_ocupados(data)
+        
+        # Filtra a lista total, deixando apenas os que NÃO estão ocupados
+        horarios_livres = [h for h in horarios_totais if h not in horarios_ocupados]
+        
+        if horarios_livres:
+            self.combo_hora_bio.configure(values=horarios_livres)
+            self.combo_hora_bio.set(horarios_livres[0]) # Já deixa o primeiro selecionado
+        else:
+            self.combo_hora_bio.configure(values=["Agenda Lotada"])
+            self.combo_hora_bio.set("Agenda Lotada")
+
     def mascara_telefone(self, var, widget):
         texto = ''.join(filter(str.isdigit, var.get()))[:11]
         formatado = ""
@@ -234,33 +273,31 @@ class InterfaceCadastro(ctk.CTk):
         var.set(formatado)
         widget.after(1, lambda: widget.icursor("end"))
 
-    def mascara_hora(self, var, widget):
-        texto = ''.join(filter(str.isdigit, var.get()))[:4]
-        formatado = ""
-        if len(texto) > 0: formatado += texto[:2]
-        if len(texto) > 2: formatado += ':' + texto[2:]
-        
-        var.set(formatado)
-        widget.after(1, lambda: widget.icursor("end"))
-
     def limpar_campos(self):
-        for var in [self.var_nome, self.var_data_nasc, self.var_contato, self.var_data_bio, self.var_hora_bio]:
+        for var in [self.var_nome, self.var_data_nasc, self.var_contato, self.var_data_bio]:
             var.set("")
+        self.combo_hora_bio.configure(values=["Digite a data primeiro"])
+        self.combo_hora_bio.set("---")
 
     def processar_salvamento(self):
         nome = self.var_nome.get()
         data_nasc = self.var_data_nasc.get()
         contato = self.var_contato.get()
         data_bio = self.var_data_bio.get()
-        hora_bio = self.var_hora_bio.get()
+        hora_bio = self.combo_hora_bio.get() # Agora pegamos o valor da caixa de seleção
 
         if not nome or not data_nasc:
             messagebox.showwarning("Aviso", "Os campos Nome e Data de Nascimento são obrigatórios!")
             return
+            
+        # Validação extra para impedir que salvem sem horário selecionado
+        if hora_bio in ["---", "Digite a data primeiro", "Digite a data completa", "Agenda Lotada"]:
+            messagebox.showwarning("Aviso", "Por favor, selecione um horário válido para o agendamento.")
+            return
 
         try:
             database.salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio)
-            messagebox.showinfo("Sucesso", f"Cadastro de {nome} salvo com sucesso!")
+            messagebox.showinfo("Sucesso", f"Cadastro de {nome} salvo para as {hora_bio}!")
             self.limpar_campos()
                 
         except Exception as e:
