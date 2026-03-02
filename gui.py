@@ -30,7 +30,7 @@ class JanelaRelatorio(ctk.CTkToplevel):
         frame_busca.pack(pady=5)
         
         ctk.CTkLabel(frame_busca, text="Mês:").pack(side="left", padx=(10, 2))
-        self.combo_mes = ctk.CTkComboBox(frame_busca, values=["Todos", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"], width=80)
+        self.combo_mes = ctk.CTkComboBox(frame_busca, values=["Todos", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"], width=80)
         self.combo_mes.set("Todos")
         self.combo_mes.pack(side="left", padx=5)
 
