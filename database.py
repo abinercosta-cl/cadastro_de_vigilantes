@@ -49,13 +49,21 @@ def buscar_por_mes_ano(mes, ano):
     conexao.close()
     return resultados
 
-# --- NOVA FUNÇÃO PARA O EXCEL ---
 def buscar_por_data_exata(data):
-    """Busca cadastros de um dia específico, ordenados pelo horário."""
     conexao = sqlite3.connect(NOME_BANCO)
     cursor = conexao.cursor()
-    # ORDER BY horario_biometria garante que a planilha saia em ordem de atendimento
     cursor.execute("SELECT * FROM cadastros WHERE data_biometria = ? ORDER BY horario_biometria ASC", (data,))
     resultados = cursor.fetchall()
     conexao.close()
     return resultados
+
+# --- NOVA FUNÇÃO ---
+def buscar_horarios_ocupados(data):
+    """Retorna uma lista de horários já cadastrados para um dia específico."""
+    conexao = sqlite3.connect(NOME_BANCO)
+    cursor = conexao.cursor()
+    cursor.execute("SELECT horario_biometria FROM cadastros WHERE data_biometria = ?", (data,))
+    resultados = cursor.fetchall()
+    conexao.close()
+    # Pega apenas a coluna do horário e transforma numa lista simples
+    return [linha[0] for linha in resultados]
