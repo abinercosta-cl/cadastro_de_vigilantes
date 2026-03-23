@@ -86,10 +86,12 @@ class JanelaRelatorio(ctk.CTkToplevel):
             return
 
         for linha in resultados:
-            id_cad, nome, data_nasc, contato, data_bio, hora_bio = linha
+            id_cad, nome, data_nasc, contato, data_bio, hora_bio, data_validacao_curso = linha
             card = ctk.CTkFrame(self.scroll_frame, corner_radius=10)
             card.pack(pady=5, padx=5, fill="x")
-            texto_card = f"Nome: {nome} | Contato: {contato}\nData Biometria: {data_bio} às {hora_bio}"
+            texto_card = (f"Nome: {nome} | Contato: {contato}\n"
+                          f"Data Biometria: {data_bio} às {hora_bio}\n"
+                          f"Validação Curso: {data_validacao_curso if data_validacao_curso else 'Não Informada'}")
             ctk.CTkLabel(card, text=texto_card, font=("Roboto", 13), justify="left").pack(pady=10, padx=10, anchor="w")
 
     def gerar_excel(self):
@@ -107,7 +109,7 @@ class JanelaRelatorio(ctk.CTkToplevel):
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Agenda Biometria"
-            headers = ["ID", "Nome Completo", "Data de Nasc.", "Contato", "Data Biometria", "Horário"]
+            headers = ["ID", "Nome Completo", "Data de Nasc.", "Contato", "Data Biometria", "Horário", "Data Validação Curso"]
             ws.append(headers)
             
             fill_header = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
@@ -127,8 +129,9 @@ class JanelaRelatorio(ctk.CTkToplevel):
             ws.column_dimensions["D"].width = 20  
             ws.column_dimensions["E"].width = 15  
             ws.column_dimensions["F"].width = 10  
+            ws.column_dimensions["G"].width = 20 # Nova coluna para Data Validação Curso
             
-            for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=6):
+            for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=7): # Ajustado max_col
                 for cell in row:
                     if cell.column != 2: 
                         cell.alignment = Alignment(horizontal="center")
@@ -172,6 +175,7 @@ class InterfaceCadastro(ctk.CTk):
         self.var_contato = StringVar()
         self.var_data_bio = StringVar()
         self.var_hora_selecionada = StringVar(value="")
+        self.var_data_validacao_curso = StringVar()
 
     # --- FUNÇÃO DO CALENDÁRIO ---
     def abrir_calendario(self, variavel_alvo, janela_pai=None):
@@ -235,6 +239,16 @@ class InterfaceCadastro(ctk.CTk):
         
         ctk.CTkButton(frame_bio, text="📅", width=40, command=lambda: self.abrir_calendario(self.var_data_bio)).pack(side="left")
 
+        # --- DATA DE VALIDAÇÃO DO CURSO (Com Botão Calendário) ---
+        ctk.CTkLabel(self, text="DATA DE VALIDAÇÃO DO CURSO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
+        frame_validacao = ctk.CTkFrame(self, fg_color="transparent")
+        frame_validacao.pack(pady=(0, 15))
+
+        self.entry_data_validacao = ctk.CTkEntry(frame_validacao, textvariable=self.var_data_validacao_curso, placeholder_text="DD/MM/YYYY", width=290)
+        self.entry_data_validacao.pack(side="left", padx=(0, 10))
+
+        ctk.CTkButton(frame_validacao, text="📅", width=40, command=lambda: self.abrir_calendario(self.var_data_validacao_curso)).pack(side="left")
+
         # --- O PAINEL DE HORÁRIOS ---
         ctk.CTkLabel(self, text="SELECIONE UM HORÁRIO", font=("Roboto", 12, "bold")).pack(anchor="w", padx=50)
         self.lbl_hora_selecionada = ctk.CTkLabel(self, text="Aguardando data...", text_color="gray", font=("Roboto", 14, "bold"))
@@ -252,6 +266,7 @@ class InterfaceCadastro(ctk.CTk):
         self.var_data_nasc.trace_add("write", lambda *args: self.mascara_data(self.var_data_nasc, self.entry_data_nasc))
         self.var_contato.trace_add("write", lambda *args: self.mascara_telefone(self.var_contato, self.entry_contato))
         self.var_data_bio.trace_add("write", lambda *args: self.mascara_data_biometria(self.var_data_bio, self.entry_data_bio))
+        self.var_data_validacao_curso.trace_add("write", lambda *args: self.mascara_data(self.var_data_validacao_curso, self.entry_data_validacao))
 
     def mascara_data(self, var, widget):
         texto = ''.join(filter(str.isdigit, var.get()))[:8]
@@ -325,7 +340,7 @@ class InterfaceCadastro(ctk.CTk):
         widget.after(1, lambda: widget.icursor("end"))
 
     def limpar_campos(self):
-        for var in [self.var_nome, self.var_data_nasc, self.var_contato, self.var_data_bio]:
+        for var in [self.var_nome, self.var_data_nasc, self.var_contato, self.var_data_bio, self.var_data_validacao_curso]:
             var.set("")
         self.var_hora_selecionada.set("")
         self.lbl_hora_selecionada.configure(text="Aguardando data completa...", text_color="gray")
@@ -338,6 +353,7 @@ class InterfaceCadastro(ctk.CTk):
         contato = self.var_contato.get()
         data_bio = self.var_data_bio.get()
         hora_bio = self.var_hora_selecionada.get()
+        data_validacao_curso = self.var_data_validacao_curso.get()
 
         if not nome or not data_nasc:
             messagebox.showwarning("Aviso", "Os campos Nome e Data de Nascimento são obrigatórios!")
@@ -348,7 +364,7 @@ class InterfaceCadastro(ctk.CTk):
             return
 
         try:
-            database.salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio)
+            database.salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio, data_validacao_curso)
             messagebox.showinfo("Sucesso", f"Cadastro salvo! {nome} agendado para as {hora_bio}.")
             self.limpar_campos()
                 

@@ -12,20 +12,28 @@ def inicializar_banco():
             data_nascimento TEXT NOT NULL,
             numero_contato TEXT,
             data_biometria TEXT,
-            horario_biometria TEXT
+            horario_biometria TEXT,
+            data_validacao_curso TEXT
         )
     ''')
+
+    # Check if 'data_validacao_curso' column exists and add if not
+    cursor.execute("PRAGMA table_info(cadastros)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'data_validacao_curso' not in columns:
+        cursor.execute("ALTER TABLE cadastros ADD COLUMN data_validacao_curso TEXT")
+
     conexao.commit()
     conexao.close()
 
-def salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio):
+def salvar_cadastro(nome, data_nasc, contato, data_bio, hora_bio, data_validacao_curso):
     conexao = sqlite3.connect(NOME_BANCO)
     cursor = conexao.cursor()
     query = """
-        INSERT INTO cadastros (nome_completo, data_nascimento, numero_contato, data_biometria, horario_biometria)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO cadastros (nome_completo, data_nascimento, numero_contato, data_biometria, horario_biometria, data_validacao_curso)
+        VALUES (?, ?, ?, ?, ?, ?)
     """
-    cursor.execute(query, (nome, data_nasc, contato, data_bio, hora_bio))
+    cursor.execute(query, (nome, data_nasc, contato, data_bio, hora_bio, data_validacao_curso))
     conexao.commit()
     conexao.close()
 
